@@ -95,21 +95,57 @@ jobs:
         run: npx wrangler@4 pages deploy --branch "${{ github.ref_name }}"
 
       # Optional: attach custom domains (workflow_dispatch input, comma-
-      # separated). Idempotent via the API — re-adding an existing domain
-      # returns it without error.
+      # separated). Idempotent: re-attaching a domain and re-creating a CNAME
+      # are no-ops. When the domain's zone lives in the same CF account the
+      # CNAME to the pages.dev domain is created automatically (needs
+      # Zone:Read + DNS:Edit on the token); otherwise a manual hint only.
       - name: Attach custom domains
         if: inputs.domains != ''
         env:
           CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json")
+
+          pages_domain=$(curl -fsS "${auth[@]}" \
+            "$api/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/removerized" |
+            jq -r '.result.domains | map(select(endswith(".pages.dev")))[0]')
+          echo "Pages domain: $pages_domain"
+
           echo "${{ inputs.domains }}" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$' |
           while read -r domain; do
-            echo "Attaching $domain"
-            curl -fsS -X POST \
-              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/removerized/domains" \
-              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-              -H "Content-Type: application/json" \
-              --data "{\"name\":\"$domain\"}"
-            echo
+            echo "::group::$domain"
+
+            curl -fsS -X POST "${auth[@]}" \
+              "$api/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/removerized/domains" \
+              --data "{\"name\":\"$domain\"}" >/dev/null && echo "Domain attached to project"
+
+            # Longest matching ancestor zone wins: sub.example.com tries
+            # sub.example.com, example.com, com. No zone (or no permission)
+            # degrades to a manual-setup hint.
+            zone_id=""
+            z="$domain"
+            while [ -n "$z" ]; do
+              zone_id=$(curl -sS "${auth[@]}" "$api/zones?name=$z" | jq -r '.result[0].id // empty')
+              [ -n "$zone_id" ] && break
+              case "$z" in *.*) z="${z#*.}" ;; *) z="" ;; esac
+            done
+
+            if [ -n "$zone_id" ]; then
+              dns_id=$(curl -sS "${auth[@]}" \
+                "$api/zones/$zone_id/dns_records?type=CNAME&name=$domain" |
+                jq -r '.result[0].id // empty')
+              if [ -n "$dns_id" ]; then
+                echo "CNAME already exists"
+              else
+                curl -fsS -X POST "${auth[@]}" "$api/zones/$zone_id/dns_records" \
+                  --data "{\"type\":\"CNAME\",\"name\":\"$domain\",\"content\":\"$pages_domain\",\"ttl\":1,\"proxied\":true}" >/dev/null
+                echo "Created CNAME $domain -> $pages_domain (proxied)"
+              fi
+            else
+              echo "::warning::No Cloudflare zone for $domain — add CNAME $domain -> $pages_domain at your DNS provider"
+            fi
+
+            echo "::endgroup::"
           done
