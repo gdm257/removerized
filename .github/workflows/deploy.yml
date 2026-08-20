@@ -60,9 +60,16 @@ jobs:
           env-slug: ${{ secrets.INFISICAL_ENV_SLUG || 'prod' }}
           secret-path: ${{ secrets.INFISICAL_SECRET_PATH || '/' }}
 
+      - name: Build
         env:
-          NEXT_PUBLIC_SITE_URL: ${{ (inputs.domains != '' && format('https://{0}', trim(split(inputs.domains, ',')[0]))) || env.NEXT_PUBLIC_SITE_URL || secrets.NEXT_PUBLIC_SITE_URL || 'https://removerized.pages.dev' }}
-        run: yarn build
+          DOMAINS: ${{ inputs.domains }}
+          NEXT_PUBLIC_SITE_URL: ${{ env.NEXT_PUBLIC_SITE_URL || secrets.NEXT_PUBLIC_SITE_URL || 'https://removerized.pages.dev' }}
+        run: |
+          first_domain=$(echo "$DOMAINS" | cut -d, -f1 | tr -d '[:space:]')
+          if [ -n "$first_domain" ]; then
+            export NEXT_PUBLIC_SITE_URL="https://$first_domain"
+          fi
+          yarn build
 
       # Any fork deploys to its own CF account: create the Pages project on
       # first run (idempotent). Name must match wrangler.toml.
