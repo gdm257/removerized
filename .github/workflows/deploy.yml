@@ -25,10 +25,12 @@ jobs:
         with:
           node-version-file: .node-version
 
+      # yarn.lock/.yarnrc.yml are gitignored in this repo, so CI installs
+      # without a lockfile and resolves from package.json ranges.
       - name: Install dependencies
         run: |
           corepack enable
-          yarn install
+          yarn install --no-immutable
 
       # Secrets come from Infisical when machine-identity credentials exist
       # (INFISICAL_CLIENT_ID/SECRET as GitHub secrets), otherwise straight
