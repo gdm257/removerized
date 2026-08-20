@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react"
 
-import { MODELS } from "../constants"
+import { INFERENCE_SIZE, MODELS } from "../constants"
 import { checkAndDownloadModel } from "../lib/idb"
 import {
   applyColorizerChromaToOriginal,
@@ -133,21 +133,38 @@ export const useOnnxSession = (
       }
 
       const session = await getOrCreateSession(modelKey, onUpdate)
+      const meta = MODELS[modelKey]
 
       onUpdate("Pre-processing…", 0)
-      const inputTensor = preprocessImage(imgEl, ortRef.current)
+      const inputTensor = preprocessImage(
+        imgEl,
+        ortRef.current,
+        meta.inputSize ?? INFERENCE_SIZE,
+        meta.mean ?? [0, 0, 0],
+        meta.std ?? [1, 1, 1]
+      )
 
       onUpdate("Running inference…", 0)
-      const inputType = MODELS[modelKey].inputType
       const results = await withTimeout(
-        session.run({ [inputType]: inputTensor }),
+        session.run({ [session.inputNames[0]]: inputTensor }),
         INFERENCE_TIMEOUT_MS,
         "Inference timed out."
       )
 
       onUpdate("Post-processing…", 0)
-      const maskTensor = results[session.outputNames[0]]
-      const blob = await applyMaskAsAlpha(maskTensor, imgEl, quality)
+      // Remover model outputs are always float32 mask tensors; narrow the
+      // union-typed ort.Tensor once at the boundary.
+      const maskTensor = results[session.outputNames[0]] as {
+        dims: readonly number[]
+        data: Float32Array
+      }
+      const blob = await applyMaskAsAlpha(
+        maskTensor,
+        imgEl,
+        quality,
+        meta.maskMode ?? "alpha",
+        meta.argmaxClass ?? 1
+      )
 
       return blob
     },
@@ -189,9 +206,8 @@ export const useOnnxSession = (
       )
 
       onUpdate("Running inference…", 0)
-      const inputType = MODELS[modelKey].inputType
       const results = await withTimeout(
-        session.run({ [inputType]: inputTensor }),
+        session.run({ [session.inputNames[0]]: inputTensor }),
         INFERENCE_TIMEOUT_MS,
         "Inference timed out."
       )

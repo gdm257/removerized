@@ -1,0 +1,2 @@
+{"file": "docs/intent/rembg-models-port.md", "reason": "已确认的需求基线:名单/去向/许可拍板/Out of scope,prd.md 的上游来源"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "约束:所有模型共用单一 preprocessImage/applyMaskAsAlpha 管线,禁止为新模型另起并行管线"}

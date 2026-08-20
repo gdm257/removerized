@@ -2,7 +2,11 @@ import { withSerwist } from "@serwist/turbopack";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  // PnP zip paths live outside the project dir; pin the root so Turbopack
+  // does not mis-infer it (yarn berry + Windows).
+  turbopack: {
+    root: process.cwd(),
+  },
   transpilePackages: ["onnxruntime-web"],
   images: {
     dangerouslyAllowSVG: true,

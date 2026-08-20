@@ -1,0 +1,14 @@
+{"file": "docs/intent/rembg-models-port.md", "reason": "验收对照:R4 现有 5 模型行为不变、bria B1 保留决定、CF Pages 部署目标"}
+{"file": "components/editor/constants.ts", "reason": "14 新条目全走 optional 字段(inputSize/mean/std/maskMode/argmaxClass)+管线默认值,15 玲条现有条目零改动;删除 inputType 字段及全部 15 处引用"}
+{"file": "components/editor/lib/onnx-pipeline.ts", "reason": "preprocessImage 参数化(size/mean/std,默认值位等价旧行为);applyMaskAsAlpha 支持 maskMode alpha|logits|argmax;argmax axis=1 取 argmaxClass 通道,letterbox 逆映射对齐"}
+{"file": "components/editor/hooks/use-onnx-session.ts", "reason": "runInference/runImageToImage 改 session.inputNames[0] 动态输入名;meta(inputSize/mean/std/maskMode/argmaxClass)传参;Tensor dims/data 边界断言"}
+{"file": "components/editor/components/ModelSelectorDialog.tsx", "reason": "footer 由 Input type 改 Input size: N×N,展示新增 inputSize 字段"}
+{"file": "tsconfig.json", "reason": "根因修复:app/sw.ts 的 no-default-lib 三斜线是 program 级,毒害全项目 lib;lib 删 WebWorker + exclude app/sw.ts(sw.ts 自带 esnext+webworker triple-slash,serwist 独立构建不受影响)"}
+{"check": "yarn typecheck", "result": "PASS", "note": "TSC_OK 全绿,ts-no-any/ts-promise-with-resolvers 两条内置规则满足"}
+{"check": "yarn build", "result": "PASS", "note": "118s 通过,sw.js 正常生成"}
+{"check": "yarn lint", "result": "SKIP", "note": "Next 16 移除 next lint,报 Invalid project directory \\lint,与本次改动无关,以 typecheck+build 替代"}
+{"check": "browser smoke silueta/u2net/cloth_upper", "result": "见 .smoke-result.txt", "note": "本机 i7-8550U WASM CPU 推理极慢,10 分钟级/图;此前误报系 Download 按钮常驻(disabled 也可点击误判),已改为点 Remove Background + 等 Batch done toast + 下载验 alpha 通道"}
+{"decision": "14 个新 ModelKey 而非 prd 计的 16", "reason": "birefnet_general_lite 与现有 birefnet_lite 同款权重不重复建条目;BiRefNet-massive 默认排除(可选后续缺口自转存);prd 内部计数不一致,以 rembg 实际 session 族谱为准"}
+{"decision": "birefnet 新条目 maskMode=alpha 而非 logits", "reason": "onnx-community 转档输出已 sigmoid(与现网正常工作的 birefnet_lite 同管线);logits 模式保留在代码中(设计契约)但当前无使用者"}
+{"decision": "cloth 硬二值 alpha(0/255)", "reason": "argmax 后按 class 归属直接二值,与 rembg palette 行为一致;class 1/2/3=上装/下装/全身,三条目共享 cacheKey u2net_cloth_seg_v1 只下载一次"}
+{"decision": "license 标注 best-effort", "reason": "u2net 系 Apache-2.0/isnet MIT/birefnet MIT/cloth 无明确声明/bria_rmbg_2_0 为 kn4666 fp16 转档且 bria 原始权重 Non-Commercial,用户已拍板风险自担;报告需注明"}

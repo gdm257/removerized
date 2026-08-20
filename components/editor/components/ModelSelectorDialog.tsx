@@ -87,6 +87,7 @@ export const ModelSelectorDialog = ({
 
   // Info for the footer credit section based on currently selected model
   const currentModelInfo = MODELS[selectedModel]
+  const inputSize = currentModelInfo.inputSize ?? 1024
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -234,8 +235,8 @@ export const ModelSelectorDialog = ({
 
         <p className="text-[10px] leading-relaxed text-white/20">
           Models are cached in IndexedDB — switching between cached models is
-          instant. Input type:{" "}
-          <code className="text-white/40">{currentModelInfo?.inputType}</code>.
+          instant. Input size:{" "}
+          <code className="text-white/40">{`${inputSize}×${inputSize}`}</code>.
         </p>
       </DialogContent>
     </Dialog>

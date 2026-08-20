@@ -3,8 +3,7 @@
     "lib": [
       "dom",
       "dom.iterable",
-      "esnext",
-      "WebWorker"
+      "esnext"
     ],
     "allowJs": true,
     "skipLibCheck": true,
@@ -42,6 +41,7 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "app/sw.ts"
   ]
 }
