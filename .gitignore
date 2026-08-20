@@ -3,7 +3,9 @@
 # dependencies
 node_modules
 .pnp
+.pnp.cjs
 .pnp.js
+.pnp.loader.mjs
 yarn.lock
 .yarnrc.yml
 .yarn/
